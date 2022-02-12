@@ -102,7 +102,7 @@ print("-"*20)
 tries = 0
 words = list(filter(lambda x: len(x)==5, map(lambda x: x[:-1],
                     open("dict.txt").readlines())))
-answer = random.choice(words)
+answer = random.choice(words[0:2309])
 print("Dictionary contains %d words" % len(words))
 
 while True:

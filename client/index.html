@@ -212,16 +212,29 @@ function submitWord() {
     if (prop == 0) {
       message("You won!");
       game.done = true;
+      localStorage.setItem("lock", true);
     } else if (game.guesses == 6) {
       message("You lost");
       game.done = true;
+      localStorage.setItem("lock", true);
     }
   }
 
   game.word = "";
 }
 
-fetch("./data.bin")
+const now = new Date();
+const last_seen = localStorage.getItem("last_seen");
+var can_play = true;
+if (last_seen != ""+now.getHours()) {
+  localStorage.setItem("last_seen", now.getHours());
+  localStorage.setItem("lock", false);
+} else if (JSON.parse(localStorage.getItem("lock"))) {
+  message("You already played, come back at the next hour");
+  can_play = false;
+}
+
+can_play && fetch("./data.bin")
   .then(e => e.arrayBuffer())
   .then(buffer => {
     const data = new Uint32Array(buffer);
@@ -231,6 +244,7 @@ fetch("./data.bin")
     game.valueseed = valueseed;
     draw_board();
     draw_keyboard();
+
     document.addEventListener("keydown", e => {
       if (game.done) return;
       if (e.keyCode == 8) {
