@@ -1,0 +1,251 @@
+<html>
+<head>
+<title>POC Wordle</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+html, body {
+    padding: 0;
+    margin: 0;
+    background: #222;
+    height: 100%;
+    font-family: sans-serif;
+    color: #eee;
+}
+#tileContainer {
+    display: flex;
+    width: 300px;
+    margin: 20px auto;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-content: center;
+}
+.tile {
+    border: 1px solid #666;
+    background: #444;
+    border-radius: 2px;
+    width: 50px;
+    height: 50px;
+    display: inline-block;
+    text-align: center;
+    font-size: 40px;
+    font-weight: bold;
+    text-transform: uppercase;
+    line-height: 55px;
+}
+.tile.missing {
+    border-color: #555;
+    background: #333;
+}
+.tile.present {
+    border-color: #403A22;
+    background: #8C8153;
+}
+.tile.correct {
+    border-color: #26401C;
+    background: #508C37;
+}
+#message {
+  width: 300px;
+  padding: 10px;
+  margin: 20px auto;
+  background: #204A4F;
+  flex-basis: 100%;
+  text-align: center;
+  border-radius: 3px;
+}
+#keyboard {
+  text-align: center;
+  width: 100%;
+}
+.key {
+  display: inline-block;
+  margin: 0;
+  border: 1px solid #777;
+  background: #999;
+  width: calc(10% - 2px);
+  max-width: 55px;
+  padding: 10px 0;
+  height: 25px;
+  vertical-align: middle;
+  text-align: center;
+  user-select: none;
+  cursor: pointer;
+  line-height: 25px;
+  text-transform: uppercase;
+  font-weight: bold;
+  color: #000;
+}
+.key.missing {
+  background: #222;
+  border-color: #222;
+}
+</style>
+</head>
+<body>
+<div id="tileContainer"></div>
+<div id="message" style="visibility:hidden"></div>
+<div id="keyboard"></div>
+<script>
+function n_bits(num, n) {
+  return num & ((1<<n)-1);
+}
+
+function hash(w, seed) {
+  var h = seed;
+  for (var i=0; i<w.length; i++) h = (((h<<5)-h) + w.charCodeAt(i)) ^ seed;
+  return h;
+}
+
+const IS_BE = (() => {
+  const endianess_buff = new Uint32Array(new ArrayBuffer(4));
+  endianess_buff[0] = 0xffeedd00;
+  return endianess_buff[0] == 0xff;
+})();
+
+const game = {
+  keyseed: 0,
+  valueseed: 0,
+  data: null,
+  guesses: 0,
+  word: "",
+  done: false
+};
+
+function tile(i) {
+  return document.querySelectorAll(".tile")[i];
+}
+
+function message(str) {
+  const box = document.querySelector("#message");
+  box.innerHTML = str;
+  box.style.visibility = "visible";
+}
+
+function keyval(num) {
+  if (IS_BE) {
+    return [num >> 8, num & 0xff];
+  } else {
+    const b0 = num         & 0xff;
+    const b1 = (num >> 8)  & 0xff;
+    const b2 = (num >> 16) & 0xff;
+    const b3 = (num >> 24) & 0xff;
+    return [(b0<<16) + (b1<<8) + b2, b3];
+  }
+}
+
+function draw_board() {
+  for (var i=0; i<5*6; i++) {
+    document.querySelector("#tileContainer").innerHTML += "<div class=tile></div>";
+  }
+}
+
+function draw_keyboard() {
+  const rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+  const div = document.querySelector("#keyboard");
+  for (var i=0; i<rows.length; i++) {
+    var row = rows[i];
+    if (i == rows.length-1)
+      div.innerHTML += "<div class=key onclick=submitWord()>⏎</div>";
+    for (var j=0; j<row.length; j++) {
+      var c = row.charAt(j)
+      div.innerHTML += "<div class=key onclick=addLetter('"+c+"') id=key_"+c+">"+c+"</div>";
+    }
+    if (i == rows.length-1)
+      div.innerHTML += "<div class=key onclick=removeLetter()>⌫</div>";
+    div.innerHTML += "<br>";
+  }
+}
+
+function addLetter(c) {
+  if (game.guesses > 5) return;
+  if (game.word.length >= 5) return;
+  tile(game.guesses*5+game.word.length).innerHTML = c;
+  game.word += c;
+}
+
+function removeLetter() {
+  if (game.guesses > 5) return;
+  if (game.word.length == 0) return;
+  game.word = game.word.substr(0, game.word.length-1);
+  tile(game.guesses*5+game.word.length).innerHTML = "";
+}
+
+function index_in_data(keyseed, data) {
+  const h = n_bits(hash(game.word, keyseed), 24);
+  var i=1, j=data.length;
+  while (i < j) {
+    var mid = (i+j)>>1;
+    var midh = keyval(data[mid])[0];
+    if (h == midh)     return mid;
+    else if (midh < h) i = mid+1;
+    else               j = mid;
+  }
+  return -1;
+}
+
+function submitWord() {
+  if (game.guesses > 5) return;
+  if (game.word.length != 5) return;
+
+  const word_index = index_in_data(game.keyseed, game.data);
+
+  if (word_index == -1) {
+    message(game.word + " is not in dictionary");
+    for (var i=0; i<5; i++)
+      tile(5*game.guesses+i).innerHTML = "";
+  }
+  else {
+    const prop = keyval(game.data[word_index])[1] ^ n_bits(hash(game.word, game.valueseed), 8);
+    const ternary = (""+prop.toString(3)).split("").reverse().join("").padEnd(5, "0");
+    for (var i=0; i<5; i++) {
+      var clazz;
+      if (ternary[i] == '0') clazz = 'correct';
+      else if (ternary[i] == '1') clazz = 'present';
+      else clazz = 'missing';
+      tile(game.guesses*5+i).className = "tile " + clazz;
+      if (ternary[i] == '2')
+        document.querySelector("#key_"+game.word.charAt(i)).className = "key missing";
+    }
+    game.guesses += 1;
+
+    if (prop == 0) {
+      message("You won!");
+      game.done = true;
+    } else if (game.guesses == 6) {
+      message("You lost");
+      game.done = true;
+    }
+  }
+
+  game.word = "";
+}
+
+fetch("./data.bin")
+  .then(e => e.arrayBuffer())
+  .then(buffer => {
+    const data = new Uint32Array(buffer);
+    const [keyseed, valueseed] = keyval(data[0]);
+    game.data = data;
+    game.keyseed = keyseed;
+    game.valueseed = valueseed;
+    draw_board();
+    draw_keyboard();
+    document.addEventListener("keydown", e => {
+      if (game.done) return;
+      if (e.keyCode == 8) {
+        removeLetter();
+      } else if (e.keyCode == 13) {
+        submitWord();
+      } else if (e.key.length == 1) {
+        const c = e.key.charAt(0).toLowerCase();
+        const code = c.charCodeAt(0);
+        if (code >= 97 && code <= 122) {
+          addLetter(c);
+        }
+      }
+    });
+  });
+</script>
+</body>
+</html>
