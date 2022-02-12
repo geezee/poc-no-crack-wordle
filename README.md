@@ -21,7 +21,7 @@ The python script is documented, so read the comments.
 To encourage attempts at breaking the game, without use of brute-force dictionary attacks, no code is obfuscated or made ugly.
 And only the minimum number of features are implemented.
 
-The client logic is in 160 lines of vanilla Javascript, and the server logic is in 125 lines of documented Python3 code.
+The client logic is in 177 lines of vanilla Javascript, and the server logic is in 146 lines of documented Python3 code.
 
 
 # Deployment

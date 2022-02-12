@@ -80,6 +80,14 @@ html, body {
   background: #222;
   border-color: #222;
 }
+.key.present {
+    border-color: #403A22;
+    background: #8C8153;
+}
+.key.correct {
+    border-color: #26401C;
+    background: #508C37;
+}
 </style>
 </head>
 <body>
@@ -109,7 +117,8 @@ const game = {
   data: null,
   guesses: 0,
   word: "",
-  done: false
+  done: false,
+  keys: {}
 };
 
 function tile(i) {
@@ -184,6 +193,12 @@ function index_in_data(keyseed, data) {
   return -1;
 }
 
+function class_enc(n) {
+    if (n == 0) return "correct";
+    else if (n == 1) return "present";
+    else return "missing";
+}
+
 function submitWord() {
   if (game.guesses > 5) return;
   if (game.word.length != 5) return;
@@ -199,13 +214,10 @@ function submitWord() {
     const prop = keyval(game.data[word_index])[1] ^ n_bits(hash(game.word, game.valueseed), 8);
     const ternary = (""+prop.toString(3)).split("").reverse().join("").padEnd(5, "0");
     for (var i=0; i<5; i++) {
-      var clazz;
-      if (ternary[i] == '0') clazz = 'correct';
-      else if (ternary[i] == '1') clazz = 'present';
-      else clazz = 'missing';
-      tile(game.guesses*5+i).className = "tile " + clazz;
-      if (ternary[i] == '2')
-        document.querySelector("#key_"+game.word.charAt(i)).className = "key missing";
+      var c = game.word.charAt(i);
+      tile(game.guesses*5+i).className = "tile " + class_enc(parseInt(ternary[i]));
+      game.keys[c] = Math.min(c in game.keys ? game.keys[c] : 2, parseInt(ternary[i]));
+      document.querySelector("#key_"+c).className = "key " + class_enc(game.keys[c]);
     }
     game.guesses += 1;
 

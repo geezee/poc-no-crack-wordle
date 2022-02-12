@@ -5,6 +5,29 @@ import datetime
 ALPHABET = 'abcdefghijklmopqrstuvwxyz'
 
 
+def all_words(n):
+    '''
+    Returns an iterator over all the 5-lettered words from the ALPHABET
+    '''
+    if n == 0: return ''
+    for c in ALPHABET:
+        for w in all_words(n-1):
+            yield c + w
+
+
+def makes_perfect_hash(seed):
+    '''
+    Checks if the given seen produces a perfect hash for the set of all
+    5-letter words
+    '''
+    hs = set()
+    for w in all_words(5):
+        h = hash(w, seed)
+        if h in hs: return False
+        hs.add(h)
+    return True
+
+
 def n_bits(num, n):
     '''
     Returns the bottom `n` bits from `num`
@@ -108,16 +131,13 @@ print("Dictionary contains %d words" % len(words))
 while True:
     tries += 1
     s1, s2 = gen_seeds()
-    print("Using seeds %d and %d," % (s1, s2), end=" ")
+    print("Using seeds %d and %d" % (s1, s2))
 
-    table = gen_table(answer, words, s1, s2)
-    collisions = len(words) - len(table)
-    print("table has %d keys, there are %d collisions" %
-            (len(table), collisions))
-
-    if collisions > 0: continue
+    if not makes_perfect_hash(s1): continue
 
     print("No collision found after", tries, "trie(s)")
+    table = gen_table(answer, words, s1, s2)
+
     dump_table(s1, s2, table, "data.bin")
     print("Wrote the seeds and the table to data.bin")
 
