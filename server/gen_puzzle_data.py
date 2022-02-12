@@ -95,6 +95,7 @@ def dump_table(s1, s2, table, filename):
 
 
 now = datetime.datetime.now()
+print("-"*20)
 print(now.strftime("%Y-%m-%d %H:%M:%S"))
 print("-"*20)
 
@@ -107,11 +108,11 @@ print("Dictionary contains %d words" % len(words))
 while True:
     tries += 1
     s1, s2 = gen_seeds()
-    print("Using seeds %d and %d" % (s1, s2))
+    print("Using seeds %d and %d," % (s1, s2), end=" ")
 
     table = gen_table(answer, words, s1, s2)
     collisions = len(words) - len(table)
-    print("Table has %d keys, there are %d collisions" %
+    print("table has %d keys, there are %d collisions" %
             (len(table), collisions))
 
     if collisions > 0: continue
